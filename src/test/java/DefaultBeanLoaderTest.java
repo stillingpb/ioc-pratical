@@ -4,6 +4,7 @@ import ioc.BeanLoader;
 import ioc.ClassPathScanner;
 import ioc.ClassScanner;
 import ioc.DefaultBeanLoader;
+import ioc.util.BeanLoaderException;
 
 import org.junit.Before;
 import org.junit.Test;
@@ -21,7 +22,7 @@ public class DefaultBeanLoaderTest {
 	}
 
 	@Test
-	public void testPeopleBean() {
+	public void testPeopleBean() throws BeanLoaderException {
 		People p = beanLoader.getBean(People.class);
 		p.eat();
 	}

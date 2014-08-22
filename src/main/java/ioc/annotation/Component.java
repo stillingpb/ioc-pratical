@@ -9,6 +9,11 @@ import java.lang.annotation.Target;
 @Documented
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
+/**
+ * 修饰需要被加载的java bean
+ * @author pb
+ *
+ */
 public @interface Component {
 
 }

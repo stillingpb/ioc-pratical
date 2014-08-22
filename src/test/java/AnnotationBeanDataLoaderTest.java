@@ -1,21 +1,20 @@
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
 import ioc.AnnotationBeanDataLoader;
 import ioc.BeanDataLoader;
 import ioc.ClassPathScanner;
 import ioc.ClassScanner;
 import ioc.data.BeanData;
-import ioc.data.ComponentBean;
-import ioc.data.FieldInjectPoint;
-import ioc.data.MethodInjectPoint;
+import ioc.data.InjectPoint;
+import ioc.util.BeanDataLoaderException;
 
-import org.junit.Assert;
+import java.util.List;
+
 import org.junit.Before;
 import org.junit.Test;
 
 import test.bean.Fruit;
 import test.bean.People;
-import test.bean.impl.Apple;
-import test.bean.impl.Orange;
 
 public class AnnotationBeanDataLoaderTest {
 	BeanDataLoader beanDataLoader;
@@ -27,7 +26,7 @@ public class AnnotationBeanDataLoaderTest {
 	}
 
 	@Test
-	public void testFruitBean() {
+	public void testFruitBean() throws BeanDataLoaderException {
 		BeanData appleBean = beanDataLoader.getBeanData(Fruit.class, "apple");
 		assertNotNull(appleBean);
 		BeanData orangeBean = beanDataLoader.getBeanData(Fruit.class, "orange");
@@ -35,16 +34,14 @@ public class AnnotationBeanDataLoaderTest {
 	}
 
 	@Test
-	public void testPeopleBean() {
+	public void testPeopleBean() throws BeanDataLoaderException {
 		BeanData peopleBean = beanDataLoader.getBeanData(People.class, "people");
 		assertNotNull(peopleBean);
-		FieldInjectPoint fieldInjectPoint = (FieldInjectPoint) peopleBean.getDependencis().get(0);
-		ComponentBean orangeComponent = fieldInjectPoint.getDependency().getComponent();
-		assertEquals(orangeComponent.getComponentType(), Orange.class);
-
-		MethodInjectPoint methodInjectPoint = (MethodInjectPoint) peopleBean.getDependencis()
-				.get(1);
-		ComponentBean appleComponent = methodInjectPoint.getDependencies().get(0).getComponent();
-		assertEquals(appleComponent.getComponentType(), Apple.class);
+		assertEquals(peopleBean.getConstructInjectPoint().getDependencies().get(0).getQualifier(),
+				"banana");
+		List<InjectPoint> list = peopleBean.getDependencis();
+		for (InjectPoint i : list) {
+			System.out.println(i.getDependencies().get(0).getQualifier());
+		}
 	}
 }

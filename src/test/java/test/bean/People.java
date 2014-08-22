@@ -15,6 +15,10 @@ public class People {
 	Fruit apple;
 
 	Fruit banana;
+	
+	@Inject
+	@WaterMellonAnnotation
+	Fruit waterMellon;
 
 	@Inject
 	public People(@Named("banana") Fruit banana) {
@@ -30,5 +34,6 @@ public class People {
 		System.out.println(banana.get());
 		System.out.println(orange.get());
 		System.out.println(apple.get());
+		System.out.println(waterMellon.get());
 	}
 }
