@@ -6,10 +6,10 @@ import java.util.List;
 
 public class FieldInjectPoint implements InjectPoint {
 	private Field field;
-	private BeanData dependency;
-	private List<BeanData> dependencies;
+	private BeanIdentifier dependency;
+	private List<BeanIdentifier> dependencies;
 
-	public FieldInjectPoint(Field field, BeanData dependency) {
+	public FieldInjectPoint(Field field, BeanIdentifier dependency) {
 		this.field = field;
 		this.dependency = dependency;
 		this.dependencies = Arrays.asList(dependency);
@@ -26,11 +26,11 @@ public class FieldInjectPoint implements InjectPoint {
 		field.setAccessible(isAccessiable);
 	}
 
-	public BeanData getDependency() {
+	public BeanIdentifier getDependency() {
 		return dependency;
 	}
 
-	public List<BeanData> getDependencies() {
+	public List<BeanIdentifier> getDependencies() {
 		return dependencies;
 	}
 

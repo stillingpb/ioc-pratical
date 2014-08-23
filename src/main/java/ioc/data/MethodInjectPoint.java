@@ -6,9 +6,9 @@ import java.util.List;
 public class MethodInjectPoint implements InjectPoint {
 
 	private Method method;
-	List<BeanData> dependencies;
+	List<BeanIdentifier> dependencies;
 
-	public MethodInjectPoint(Method method, List<BeanData> dependencies) {
+	public MethodInjectPoint(Method method, List<BeanIdentifier> dependencies) {
 		this.method = method;
 		this.dependencies = dependencies;
 	}
@@ -24,7 +24,7 @@ public class MethodInjectPoint implements InjectPoint {
 		method.setAccessible(isAccessiable);
 	}
 
-	public List<BeanData> getDependencies() {
+	public List<BeanIdentifier> getDependencies() {
 		return dependencies;
 	}
 

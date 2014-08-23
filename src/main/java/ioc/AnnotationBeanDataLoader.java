@@ -2,6 +2,7 @@ package ioc;
 
 import ioc.annotation.Component;
 import ioc.data.BeanData;
+import ioc.data.BeanIdentifier;
 import ioc.data.ConstructorInjectPoint;
 import ioc.data.FieldInjectPoint;
 import ioc.data.InjectPoint;
@@ -14,6 +15,8 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -23,6 +26,8 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.inject.Inject;
+
+import com.sun.net.ssl.internal.ssl.Provider;
 
 public class AnnotationBeanDataLoader implements BeanDataLoader {
 
@@ -36,16 +41,10 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	 */
 	private Map<Class<?>, BeanData> beanDataMap;
 
-	/**
-	 * 通过跟踪正在创建beanData的class，发现循环依赖
-	 */
-	private ComponentBeanMap beanDataInCreating;
-
 	public AnnotationBeanDataLoader(ClassScanner scanner) throws BeanDataLoaderException {
 		this.scanner = scanner;
 		componentBeanMap = loadComponentBeanFromClasses();
 		beanDataMap = new HashMap<Class<?>, BeanData>();
-		beanDataInCreating = new ComponentBeanMap();
 	}
 
 	public void loadAllBeanData() throws BeanDataLoaderException {
@@ -65,17 +64,12 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	}
 
 	private BeanData loadBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
-		if (beanDataInCreating.contains(clazz, qualifier))
-			throw new BeanDataLoaderException("there exists cycle depency ( " + clazz.getName()
-					+ " : " + qualifier + " )");
-		beanDataInCreating.add(qualifier, clazz);
 		ConstructorInjectPoint constInjectPoint = findConstructInjectPoint(clazz);
 		List<InjectPoint> injectPoints = new ArrayList<InjectPoint>();
 		injectPoints.addAll(findFieldInjectPoint(clazz));
 		injectPoints.addAll(findMethodInjectPoint(clazz));
 		BeanData beanData = new BeanData(clazz, qualifier, constInjectPoint, injectPoints);
 		beanDataMap.put(clazz, beanData);
-		beanDataInCreating.remove(qualifier, clazz);
 		return beanData;
 	}
 
@@ -107,7 +101,7 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	private ConstructorInjectPoint findConstructInjectPoint(Class<?> clazz)
 			throws BeanDataLoaderException {
 		Constructor<?>[] constructors = clazz.getDeclaredConstructors();
-		List<BeanData> dependencies = new ArrayList<BeanData>();
+		List<BeanIdentifier> dependencies = new ArrayList<BeanIdentifier>();
 		Constructor<?> constructorNeedInject = null;
 		int count = 0; // 计数需要注入的构造器个数
 		for (Constructor<?> constructor : constructors) {
@@ -121,12 +115,12 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				throw new BeanDataLoaderException(clazz.toString()
 						+ " has too much constructor need to inject");
 			Class<?> paramTypes[] = constructor.getParameterTypes();
+			Type genericTypes[] = constructor.getGenericParameterTypes();
 			Annotation[][] paramAnnotations = constructor.getParameterAnnotations();
 			for (int i = 0; i < paramTypes.length; i++) {
-				String paramQualifier = ReflectUtil.getParameterQualifier(paramTypes[i],
-						paramAnnotations[i]);
-				BeanData paramData = getBeanData(paramTypes[i], paramQualifier);
-				dependencies.add(paramData);
+				BeanIdentifier identifier = ReflectUtil.getBeanIdentifier(paramTypes[i],
+						genericTypes[i], paramAnnotations[i]);
+				dependencies.add(identifier);
 			}
 			constructor.setAccessible(isAccessable);
 			constructorNeedInject = constructor;
@@ -134,7 +128,8 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 		if (constructorNeedInject != null)
 			return new ConstructorInjectPoint(constructorNeedInject, dependencies);
 		try {
-			return new ConstructorInjectPoint(clazz.getConstructor(), new ArrayList<BeanData>());
+			return new ConstructorInjectPoint(clazz.getConstructor(),
+					new ArrayList<BeanIdentifier>());
 		} catch (Exception e) {
 			throw new BeanDataLoaderException("please reserve a default public constructor for "
 					+ clazz.toString(), e);
@@ -152,13 +147,13 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				continue;
 			}
 			Class<?> paramTypes[] = method.getParameterTypes();
+			Type genericTypes[] = method.getGenericParameterTypes();
 			Annotation[][] paramAnnotations = method.getParameterAnnotations();
-			List<BeanData> dependencies = new ArrayList<BeanData>();
+			List<BeanIdentifier> dependencies = new ArrayList<BeanIdentifier>();
 			for (int i = 0; i < paramTypes.length; i++) {
-				String paramQualifier = ReflectUtil.getParameterQualifier(paramTypes[i],
-						paramAnnotations[i]);
-				BeanData paramData = getBeanData(paramTypes[i], paramQualifier);
-				dependencies.add(paramData);
+				BeanIdentifier identifier = ReflectUtil.getBeanIdentifier(paramTypes[i],
+						genericTypes[i], paramAnnotations[i]);
+				dependencies.add(identifier);
 			}
 			injectPoints.add(new MethodInjectPoint(method, dependencies));
 			method.setAccessible(isAccessible);
@@ -174,11 +169,12 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 			boolean isAccessible = field.isAccessible();
 			field.setAccessible(true);
 			if (field.isAnnotationPresent(Inject.class)) {
-				Class<?> fieldClass = field.getType();
-				String fieldQualifier = ReflectUtil.getParameterQualifier(fieldClass,
-						field.getAnnotations());
-				BeanData fieldData = getBeanData(fieldClass, fieldQualifier);
-				injectPoints.add(new FieldInjectPoint(field, fieldData));
+				Class<?> paramType = field.getType();
+				Type genericType = field.getGenericType();
+				Annotation[] paramAnnotation = field.getAnnotations();
+				BeanIdentifier identifier = ReflectUtil.getBeanIdentifier(paramType, genericType,
+						paramAnnotation);
+				injectPoints.add(new FieldInjectPoint(field, identifier));
 			}
 			field.setAccessible(isAccessible);
 		}
@@ -239,27 +235,6 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				if (clazz.isAssignableFrom(c))
 					matched.add(c);
 			return matched;
-		}
-
-		public boolean contains(Class<?> clazz, String qualifier) {
-			qualifier = qualifier.toLowerCase();
-			List<Class<?>> classes = componentBeans.get(qualifier);
-			if (classes == null)
-				return false;
-			for (Class<?> c : classes)
-				if (c == clazz)
-					return true;
-			return false;
-		}
-
-		public void remove(String qualifier, Class<?> clazz) {
-			qualifier = qualifier.toLowerCase();
-			List<Class<?>> classes = componentBeans.get(qualifier);
-			if (classes == null)
-				return;
-			for (int i = 0; i < classes.size(); i++)
-				if (clazz == classes.get(i))
-					classes.remove(i);
 		}
 	}
 

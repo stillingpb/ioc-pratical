@@ -1,20 +1,30 @@
 package ioc;
 
 import ioc.data.BeanData;
+import ioc.data.BeanIdentifier;
 import ioc.data.ConstructorInjectPoint;
 import ioc.data.InjectPoint;
 import ioc.util.BeanDataLoaderException;
 import ioc.util.BeanLoaderException;
+import ioc.util.ProviderBeanLoaderException;
 
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import javax.inject.Provider;
+
 public class DefaultBeanLoader implements BeanLoader {
 	private BeanDataLoader beanDataLoader;
 
+	/**
+	 * 通过记录beanData，来存储正在创建的bean，从而避免循环依赖
+	 */
+	private Set<BeanData> beanInCreating;
+
 	public DefaultBeanLoader(BeanDataLoader beanDataLoader) {
 		this.beanDataLoader = beanDataLoader;
+		beanInCreating = new HashSet<BeanData>();
 	}
 
 	public <T> T getBean(Class<T> clazz) throws BeanLoaderException {
@@ -29,8 +39,12 @@ public class DefaultBeanLoader implements BeanLoader {
 			throw new BeanLoaderException("get bean data Exception ( " + clazz + " : " + qualifier
 					+ " )", e);
 		}
+		if (beanInCreating.contains(beanData))
+			throw new BeanLoaderException("there exists cycle depency " + beanData);
+		beanInCreating.add(beanData);
 		Object instance = constructBeanInstance(beanData);
 		autowiredBean(instance, beanData);
+		beanInCreating.remove(beanData);
 		return (T) instance;
 	}
 
@@ -43,24 +57,37 @@ public class DefaultBeanLoader implements BeanLoader {
 	 */
 	private void autowiredBean(Object instance, BeanData beanData) throws BeanLoaderException {
 		for (InjectPoint injectPoint : beanData.getDependencis()) {
-			List<BeanData> dependencies = injectPoint.getDependencies();
+			List<BeanIdentifier> dependencies = injectPoint.getDependencies();
 			Object[] params = new Object[dependencies.size()];
-			for (int i = 0; i < dependencies.size(); i++) {
-				BeanData paramBeanData = dependencies.get(i);
-				params[i] = getBean(paramBeanData.getBeanType(), paramBeanData.getQualifier());
-			}
+			for (int i = 0; i < dependencies.size(); i++)
+				params[i] = autowiredParam(dependencies.get(i));
 			injectPoint.inject(instance, params);
 		}
 	}
 
 	private Object constructBeanInstance(BeanData beanData) throws BeanLoaderException {
 		ConstructorInjectPoint constInjectPoint = beanData.getConstructInjectPoint();
-		List<BeanData> dependencies = constInjectPoint.getDependencies();
+		List<BeanIdentifier> dependencies = constInjectPoint.getDependencies();
 		Object[] params = new Object[dependencies.size()];
-		for (int i = 0; i < dependencies.size(); i++) {
-			BeanData paramBeanData = dependencies.get(i);
-			params[i] = getBean(paramBeanData.getBeanType(), paramBeanData.getQualifier());
-		}
+		for (int i = 0; i < dependencies.size(); i++)
+			params[i] = autowiredParam(dependencies.get(i));
 		return constInjectPoint.newInstance(params);
+	}
+
+	private Object autowiredParam(final BeanIdentifier identifier) throws BeanLoaderException {
+		Object instance = null;
+		if (identifier.isProvider()) {
+			instance = new Provider() {
+				public Object get() {
+					try {
+						return getBean(identifier.getBeanType(), identifier.getQualifier());
+					} catch (BeanLoaderException e) {
+						throw new ProviderBeanLoaderException(e);
+					}
+				}
+			};
+		} else
+			instance = getBean(identifier.getBeanType(), identifier.getQualifier());
+		return instance;
 	}
 }

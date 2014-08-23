@@ -1,14 +1,13 @@
 package ioc.data;
 
 import java.lang.reflect.Constructor;
-import java.lang.reflect.InvocationTargetException;
 import java.util.List;
 
 public class ConstructorInjectPoint implements InjectPoint {
 	private Constructor constructor;
-	private List<BeanData> dependencies;
+	private List<BeanIdentifier> dependencies;
 
-	public ConstructorInjectPoint(Constructor constructor, List<BeanData> dependencies) {
+	public ConstructorInjectPoint(Constructor constructor, List<BeanIdentifier> dependencies) {
 		this.constructor = constructor;
 		this.dependencies = dependencies;
 	}
@@ -28,7 +27,7 @@ public class ConstructorInjectPoint implements InjectPoint {
 	public void inject(Object instance, Object... params) {
 	}
 
-	public List<BeanData> getDependencies() {
+	public List<BeanIdentifier> getDependencies() {
 		return this.dependencies;
 	}
 }

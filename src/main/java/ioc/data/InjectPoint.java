@@ -5,5 +5,5 @@ import java.util.List;
 public interface InjectPoint {
 	public void inject(Object instance, Object... params);
 
-	public List<BeanData> getDependencies();
+	public List<BeanIdentifier> getDependencies();
 }

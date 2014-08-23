@@ -1,8 +1,13 @@
 package ioc.util;
 
+import ioc.data.BeanIdentifier;
+
 import java.lang.annotation.Annotation;
+import java.lang.reflect.ParameterizedType;
+import java.lang.reflect.Type;
 
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Qualifier;
 
 public class ReflectUtil {
@@ -27,7 +32,30 @@ public class ReflectUtil {
 		return qualifier;
 	}
 
-	public static String getParameterQualifier(Class<?> paramType, Annotation[] annotations) {
+	/**
+	 * 通过参数类型，泛化类型，注解获得beanIdentifier
+	 * 
+	 * @param paramType
+	 *            参数类型
+	 * @param genericType
+	 *            泛化类型
+	 * @param paramAnnotations
+	 *            注解
+	 * @return beanIdentifier
+	 */
+	public static BeanIdentifier getBeanIdentifier(Class<?> paramType, Type genericType,
+			Annotation[] paramAnnotations) {
+		boolean isProvider = false;
+		if (paramType == Provider.class) {
+			ParameterizedType pType = (ParameterizedType) genericType;
+			paramType = (Class<?>) pType.getActualTypeArguments()[0];
+			isProvider = true;
+		}
+		String paramQualifier = getParameterQualifier(paramType, paramAnnotations);
+		return new BeanIdentifier(paramType, paramQualifier, isProvider);
+	}
+
+	private static String getParameterQualifier(Class<?> paramType, Annotation[] annotations) {
 		String paramQualifier = paramType.getSimpleName();
 		for (Annotation annotation : annotations) {
 			Class<?> annotationType = annotation.annotationType();
