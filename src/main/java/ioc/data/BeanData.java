@@ -32,4 +32,7 @@ public class BeanData {
 		return constructInjectPoint;
 	}
 
+	public String toString() {
+		return "( " + beanType.getName() + " : " + qualifier + " )";
+	}
 }

@@ -2,7 +2,6 @@ package ioc;
 
 import ioc.annotation.Component;
 import ioc.data.BeanData;
-import ioc.data.ComponentBean;
 import ioc.data.ConstructorInjectPoint;
 import ioc.data.FieldInjectPoint;
 import ioc.data.InjectPoint;
@@ -18,29 +17,70 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 
 public class AnnotationBeanDataLoader implements BeanDataLoader {
 
 	private ClassScanner scanner;
-	private Set<ComponentBean> componentBeans;
+	/**
+	 * 缓存已加载的组件bean
+	 */
+	private ComponentBeanMap componentBeanMap;
 	/**
 	 * 缓存已经加载过的beanData
 	 */
 	private Map<Class<?>, BeanData> beanDataMap;
 
-	public AnnotationBeanDataLoader(ClassScanner scanner) {
+	/**
+	 * 通过跟踪正在创建beanData的class，发现循环依赖
+	 */
+	private ComponentBeanMap beanDataInCreating;
+
+	public AnnotationBeanDataLoader(ClassScanner scanner) throws BeanDataLoaderException {
 		this.scanner = scanner;
+		componentBeanMap = loadComponentBeanFromClasses();
+		beanDataMap = new HashMap<Class<?>, BeanData>();
+		beanDataInCreating = new ComponentBeanMap();
 	}
 
-	private Set<ComponentBean> loadClasses() throws BeanDataLoaderException {
-		Set<ComponentBean> componentBeans = new HashSet<ComponentBean>();
+	public void loadAllBeanData() throws BeanDataLoaderException {
+		Map<String, List<Class<?>>> componentBeans = componentBeanMap.getComponentBeans();
+		for (Entry<String, List<Class<?>>> entry : componentBeans.entrySet()) {
+			String qualifier = entry.getKey();
+			for (Class<?> bindingClazz : entry.getValue())
+				loadBeanData(bindingClazz, qualifier);
+		}
+	}
+
+	public BeanData getBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
+		Class<?> bindingClazz = getBindingClass(clazz, qualifier);
+		if (beanDataMap.containsKey(bindingClazz))
+			return beanDataMap.get(bindingClazz);
+		return loadBeanData(bindingClazz, qualifier);
+	}
+
+	private BeanData loadBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
+		if (beanDataInCreating.contains(clazz, qualifier))
+			throw new BeanDataLoaderException("there exists cycle depency ( " + clazz.getName()
+					+ " : " + qualifier + " )");
+		beanDataInCreating.add(qualifier, clazz);
+		ConstructorInjectPoint constInjectPoint = findConstructInjectPoint(clazz);
+		List<InjectPoint> injectPoints = new ArrayList<InjectPoint>();
+		injectPoints.addAll(findFieldInjectPoint(clazz));
+		injectPoints.addAll(findMethodInjectPoint(clazz));
+		BeanData beanData = new BeanData(clazz, qualifier, constInjectPoint, injectPoints);
+		beanDataMap.put(clazz, beanData);
+		beanDataInCreating.remove(qualifier, clazz);
+		return beanData;
+	}
+
+	private ComponentBeanMap loadComponentBeanFromClasses() throws BeanDataLoaderException {
+		ComponentBeanMap componentBeanMap = new ComponentBeanMap();
 		Set<Class<?>> classes = null;
 		try {
 			classes = scanner.loadClasses();
@@ -50,34 +90,10 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 		for (Class<?> clazz : classes) {
 			if (clazz.isAnnotationPresent(Component.class)) {
 				String qualifier = ReflectUtil.getClassQualifier(clazz);
-				componentBeans.add(new ComponentBean(clazz, qualifier));
+				componentBeanMap.add(qualifier, clazz);
 			}
 		}
-		return componentBeans;
-	}
-
-	public void loadAllBeanData() throws BeanDataLoaderException {
-		if (componentBeans == null)
-			componentBeans = loadClasses();
-		if (beanDataMap == null)
-			beanDataMap = new HashMap<Class<?>, BeanData>();
-	}
-
-	public BeanData getBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
-		if (componentBeans == null)
-			componentBeans = loadClasses();
-		if (beanDataMap == null)
-			beanDataMap = new HashMap<Class<?>, BeanData>();
-		Class<?> bindingClazz = getBindingClass(clazz, qualifier);
-		if (beanDataMap.containsKey(bindingClazz))
-			return beanDataMap.get(bindingClazz);
-		ConstructorInjectPoint constInjectPoint = findConstructInjectPoint(bindingClazz);
-		List<InjectPoint> injectPoints = new ArrayList<InjectPoint>();
-		injectPoints.addAll(findFieldInjectPoint(bindingClazz));
-		injectPoints.addAll(findMethodInjectPoint(bindingClazz));
-		BeanData beanData = new BeanData(bindingClazz, qualifier, constInjectPoint, injectPoints);
-		beanDataMap.put(bindingClazz, beanData);
-		return beanData;
+		return componentBeanMap;
 	}
 
 	/**
@@ -92,7 +108,7 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 			throws BeanDataLoaderException {
 		Constructor<?>[] constructors = clazz.getDeclaredConstructors();
 		List<BeanData> dependencies = new ArrayList<BeanData>();
-		Constructor constructorNeedInject = null;
+		Constructor<?> constructorNeedInject = null;
 		int count = 0; // 计数需要注入的构造器个数
 		for (Constructor<?> constructor : constructors) {
 			boolean isAccessable = constructor.isAccessible();
@@ -101,7 +117,7 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				constructor.setAccessible(isAccessable);
 				continue;
 			}
-			if (count++ > 1) // 如果计数需要注入的构造器个数超过1个，抛出异常
+			if (++count > 1) // 如果计数需要注入的构造器个数超过1个，抛出异常
 				throw new BeanDataLoaderException(clazz.toString()
 						+ " has too much constructor need to inject");
 			Class<?> paramTypes[] = constructor.getParameterTypes();
@@ -171,19 +187,80 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 
 	private Class<?> getBindingClass(Class<?> clazz, String qualifier)
 			throws BeanDataLoaderException {
-		List<ComponentBean> matched = new ArrayList<ComponentBean>();
-		for (ComponentBean bean : componentBeans) {
-			if (bean.isMatched(clazz, qualifier))
-				matched.add(bean);
-		}
-		if (matched.size() == 0)
+		List<Class<?>> matched = componentBeanMap.getBindingClass(clazz, qualifier);
+		if (matched == null || matched.size() == 0)
 			throw new BeanDataLoaderException("there is no bean match with (" + clazz.toString()
 					+ " : " + qualifier + ")  :" + matched);
 		else if (matched.size() == 1)
-			return matched.get(0).getComponentType();
+			return matched.get(0);
 		else
 			throw new BeanDataLoaderException("there is too much bean match with ("
 					+ clazz.toString() + " : " + qualifier + ")  :" + matched);
+	}
+
+	/**
+	 * 以<qualifier, List<Class<?>>>的形式保存componentBean,
+	 * 供快速定位匹配<class,qualifier>的类
+	 * 
+	 * @author pb
+	 * 
+	 */
+	private static class ComponentBeanMap {
+		/**
+		 * <key, value> == <qualifier, List<Class<?>>>
+		 */
+		private Map<String, List<Class<?>>> componentBeans;
+
+		public ComponentBeanMap() {
+			componentBeans = new HashMap<String, List<Class<?>>>();
+		}
+
+		public Map<String, List<Class<?>>> getComponentBeans() {
+			return componentBeans;
+		}
+
+		public void add(String qualifier, Class<?> clazz) {
+			qualifier = qualifier.toLowerCase();
+			List<Class<?>> classes = componentBeans.get(qualifier);
+			if (classes == null) {
+				classes = new ArrayList<Class<?>>();
+				componentBeans.put(qualifier, classes);
+			}
+			classes.add(clazz);
+		}
+
+		public List<Class<?>> getBindingClass(Class<?> clazz, String qualifier) {
+			qualifier = qualifier.toLowerCase();
+			List<Class<?>> matched = new ArrayList<Class<?>>();
+			List<Class<?>> classes = componentBeans.get(qualifier);
+			if (classes == null)
+				return matched;
+			for (Class<?> c : classes)
+				if (clazz.isAssignableFrom(c))
+					matched.add(c);
+			return matched;
+		}
+
+		public boolean contains(Class<?> clazz, String qualifier) {
+			qualifier = qualifier.toLowerCase();
+			List<Class<?>> classes = componentBeans.get(qualifier);
+			if (classes == null)
+				return false;
+			for (Class<?> c : classes)
+				if (c == clazz)
+					return true;
+			return false;
+		}
+
+		public void remove(String qualifier, Class<?> clazz) {
+			qualifier = qualifier.toLowerCase();
+			List<Class<?>> classes = componentBeans.get(qualifier);
+			if (classes == null)
+				return;
+			for (int i = 0; i < classes.size(); i++)
+				if (clazz == classes.get(i))
+					classes.remove(i);
+		}
 	}
 
 }

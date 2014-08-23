@@ -1,13 +1,14 @@
 package ioc;
 
 import ioc.data.BeanData;
-import ioc.data.ComponentBean;
 import ioc.data.ConstructorInjectPoint;
 import ioc.data.InjectPoint;
 import ioc.util.BeanDataLoaderException;
 import ioc.util.BeanLoaderException;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class DefaultBeanLoader implements BeanLoader {
 	private BeanDataLoader beanDataLoader;
@@ -33,6 +34,13 @@ public class DefaultBeanLoader implements BeanLoader {
 		return (T) instance;
 	}
 
+	/**
+	 * 装配bean的field,和 method
+	 * 
+	 * @param instance
+	 * @param beanData
+	 * @throws BeanLoaderException
+	 */
 	private void autowiredBean(Object instance, BeanData beanData) throws BeanLoaderException {
 		for (InjectPoint injectPoint : beanData.getDependencis()) {
 			List<BeanData> dependencies = injectPoint.getDependencies();

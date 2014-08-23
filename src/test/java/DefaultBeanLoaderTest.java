@@ -4,6 +4,7 @@ import ioc.BeanLoader;
 import ioc.ClassPathScanner;
 import ioc.ClassScanner;
 import ioc.DefaultBeanLoader;
+import ioc.util.BeanDataLoaderException;
 import ioc.util.BeanLoaderException;
 
 import org.junit.Before;
@@ -15,7 +16,7 @@ public class DefaultBeanLoaderTest {
 	BeanLoader beanLoader;
 
 	@Before
-	public void setUp() {
+	public void setUp() throws BeanDataLoaderException {
 		ClassScanner scanner = new ClassPathScanner("test.bean");
 		BeanDataLoader beanDataLoader = new AnnotationBeanDataLoader(scanner);
 		beanLoader = new DefaultBeanLoader(beanDataLoader);
@@ -26,5 +27,4 @@ public class DefaultBeanLoaderTest {
 		People p = beanLoader.getBean(People.class);
 		p.eat();
 	}
-
 }

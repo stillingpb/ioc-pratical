@@ -1,3 +1,25 @@
+/*
+                   _ooOoo_
+                  o8888888o
+                  88" . "88
+                  (| -_- |)
+                  O\  =  /O
+               ____/`---'\____
+             .'  \\|     |//  `.
+            /  \\|||  :  |||//  \
+           /  _||||| -:- |||||-  \
+           |   | \\\  -  /// |   |
+           | \_|  ''\---/''  |   |
+           \  .-\__  `-`  ___/-. /
+         ___`. .'  /--.--\  `. . __
+      ."" '<  `.___\_<|>_/___.'  >'"".
+     | | :  `- \`.;`\ _ /`;.`/ - ` : | |
+     \  \ `-.   \_ __\ /__ _/   .-` /  /
+======`-.____`-.___\_____/___.-`____.-'======
+                   `=---='
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+         佛祖保佑       永无BUG
+ */
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import ioc.AnnotationBeanDataLoader;
@@ -7,6 +29,7 @@ import ioc.ClassScanner;
 import ioc.data.BeanData;
 import ioc.data.InjectPoint;
 import ioc.util.BeanDataLoaderException;
+import ioc.util.BeanLoaderException;
 
 import java.util.List;
 
@@ -15,12 +38,13 @@ import org.junit.Test;
 
 import test.bean.Fruit;
 import test.bean.People;
+import test.bean.cycle.CycleOne;
 
 public class AnnotationBeanDataLoaderTest {
 	BeanDataLoader beanDataLoader;
 
 	@Before
-	public void setUp() {
+	public void setUp() throws BeanDataLoaderException {
 		ClassScanner scanner = new ClassPathScanner("test.bean");
 		beanDataLoader = new AnnotationBeanDataLoader(scanner);
 	}
@@ -44,4 +68,15 @@ public class AnnotationBeanDataLoaderTest {
 			System.out.println(i.getDependencies().get(0).getQualifier());
 		}
 	}
+
+	@Test(expected = BeanDataLoaderException.class)
+	public void testCycle() throws BeanDataLoaderException {
+		try {
+			beanDataLoader.getBeanData(CycleOne.class, "cycleOne");
+		} catch (BeanDataLoaderException e) {
+			e.printStackTrace();
+			throw e;
+		}
+	}
+
 }
