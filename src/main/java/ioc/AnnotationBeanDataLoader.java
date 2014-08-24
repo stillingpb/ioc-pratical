@@ -26,6 +26,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 
 import com.sun.net.ssl.internal.ssl.Provider;
 
@@ -68,9 +69,17 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 		List<InjectPoint> injectPoints = new ArrayList<InjectPoint>();
 		injectPoints.addAll(findFieldInjectPoint(clazz));
 		injectPoints.addAll(findMethodInjectPoint(clazz));
-		BeanData beanData = new BeanData(clazz, qualifier, constInjectPoint, injectPoints);
+		boolean isSingleton = findSingleInfo(clazz);
+		BeanData beanData = new BeanData(clazz, qualifier, constInjectPoint, injectPoints,
+				isSingleton);
 		beanDataMap.put(clazz, beanData);
 		return beanData;
+	}
+
+	private boolean findSingleInfo(Class<?> clazz) {
+		if (clazz.isAnnotationPresent(Singleton.class))
+			return true;
+		return false;
 	}
 
 	private ComponentBeanMap loadComponentBeanFromClasses() throws BeanDataLoaderException {

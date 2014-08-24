@@ -1,5 +1,7 @@
 package test;
 
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 import static org.junit.Assert.assertNotNull;
 import ioc.AnnotationBeanDataLoader;
 import ioc.BeanDataLoader;
@@ -15,8 +17,8 @@ import org.junit.Test;
 
 import test.bean.People;
 import test.bean.cycle.CycleOne;
-import test.bean.cycle.CycleOneProvider;
 import test.bean.cycle.CycleTwoProvider;
+import test.bean.singleton.PeopleSingleton;
 
 public class DefaultBeanLoaderTest {
 	BeanLoader beanLoader;
@@ -45,5 +47,16 @@ public class DefaultBeanLoaderTest {
 		assertNotNull(twoProvider);
 		assertNotNull(twoProvider.one2);
 		assertNotNull(twoProvider.one2.get());
+	}
+
+	@Test
+	public void testSingleton() throws BeanLoaderException {
+		People p1 = beanLoader.getBean(People.class);
+		People p2 = beanLoader.getBean(People.class);
+		assertNotEquals(p1, p2);
+		PeopleSingleton people1 = beanLoader.getBean(PeopleSingleton.class);
+		PeopleSingleton people2 = beanLoader.getBean(PeopleSingleton.class);
+		assertEquals(people1, people2);
+		assertEquals(people1.orange, people2.orange);
 	}
 }

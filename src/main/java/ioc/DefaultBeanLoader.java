@@ -8,8 +8,10 @@ import ioc.util.BeanDataLoaderException;
 import ioc.util.BeanLoaderException;
 import ioc.util.ProviderBeanLoaderException;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import javax.inject.Provider;
@@ -18,12 +20,18 @@ public class DefaultBeanLoader implements BeanLoader {
 	private BeanDataLoader beanDataLoader;
 
 	/**
+	 * 存储单例java bean
+	 */
+	private Map<BeanData, Object> singleBeanMap;
+
+	/**
 	 * 通过记录beanData，来存储正在创建的bean，从而避免循环依赖
 	 */
 	private Set<BeanData> beanInCreating;
 
 	public DefaultBeanLoader(BeanDataLoader beanDataLoader) {
 		this.beanDataLoader = beanDataLoader;
+		singleBeanMap = new HashMap<BeanData, Object>();
 		beanInCreating = new HashSet<BeanData>();
 	}
 
@@ -39,12 +47,16 @@ public class DefaultBeanLoader implements BeanLoader {
 			throw new BeanLoaderException("get bean data Exception ( " + clazz + " : " + qualifier
 					+ " )", e);
 		}
+		if (singleBeanMap.containsKey(beanData))
+			return (T) singleBeanMap.get(beanData);
 		if (beanInCreating.contains(beanData))
 			throw new BeanLoaderException("there exists cycle depency " + beanData);
 		beanInCreating.add(beanData);
 		Object instance = constructBeanInstance(beanData);
 		autowiredBean(instance, beanData);
 		beanInCreating.remove(beanData);
+		if (beanData.isSingleton())
+			singleBeanMap.put(beanData, instance);
 		return (T) instance;
 	}
 

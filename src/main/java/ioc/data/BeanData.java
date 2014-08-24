@@ -8,12 +8,15 @@ public class BeanData {
 	private ConstructorInjectPoint constructInjectPoint;
 	private List<InjectPoint> dependencis;
 
+	private boolean isSingleton;
+
 	public BeanData(Class<?> beanType, String qualifier, ConstructorInjectPoint constInjectPoint,
-			List<InjectPoint> dependencis) {
+			List<InjectPoint> dependencis, boolean isSingleton) {
 		this.beanType = beanType;
 		this.qualifier = qualifier;
 		this.constructInjectPoint = constInjectPoint;
 		this.dependencis = dependencis;
+		this.isSingleton = isSingleton;
 	}
 
 	public Class<?> getBeanType() {
@@ -30,6 +33,10 @@ public class BeanData {
 
 	public ConstructorInjectPoint getConstructInjectPoint() {
 		return constructInjectPoint;
+	}
+
+	public boolean isSingleton() {
+		return isSingleton;
 	}
 
 	public String toString() {
