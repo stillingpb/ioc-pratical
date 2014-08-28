@@ -42,13 +42,13 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	 */
 	private Map<Class<?>, BeanData> beanDataMap;
 
-	public AnnotationBeanDataLoader(ClassScanner scanner) throws BeanDataLoaderException {
+	public AnnotationBeanDataLoader(ClassScanner scanner) {
 		this.scanner = scanner;
-		componentBeanMap = loadComponentBeanFromClasses();
 		beanDataMap = new HashMap<Class<?>, BeanData>();
 	}
 
 	public void loadAllBeanData() throws BeanDataLoaderException {
+		loadComponentBeanFromClassesIfNeeded();
 		Map<String, List<Class<?>>> componentBeans = componentBeanMap.getComponentBeans();
 		for (Entry<String, List<Class<?>>> entry : componentBeans.entrySet()) {
 			String qualifier = entry.getKey();
@@ -58,6 +58,7 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	}
 
 	public BeanData getBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
+		loadComponentBeanFromClassesIfNeeded();
 		Class<?> bindingClazz = getBindingClass(clazz, qualifier);
 		if (beanDataMap.containsKey(bindingClazz))
 			return beanDataMap.get(bindingClazz);
@@ -82,8 +83,10 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 		return false;
 	}
 
-	private ComponentBeanMap loadComponentBeanFromClasses() throws BeanDataLoaderException {
-		ComponentBeanMap componentBeanMap = new ComponentBeanMap();
+	private void loadComponentBeanFromClassesIfNeeded() throws BeanDataLoaderException {
+		if (componentBeanMap != null)
+			return;
+		componentBeanMap = new ComponentBeanMap();
 		Set<Class<?>> classes = null;
 		try {
 			classes = scanner.loadClasses();
@@ -96,7 +99,6 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				componentBeanMap.add(qualifier, clazz);
 			}
 		}
-		return componentBeanMap;
 	}
 
 	/**

@@ -50,7 +50,7 @@ public class ClassPathScanner implements ClassScanner {
 		String pathStr = pckPath.replaceAll("\\.", "/");
 		URL url = classLoader.getResource(pathStr);
 		if (url == null)
-			throw new ClassScannerException(pckPath + " could not be found");
+			throw new ClassScannerException("package could not be found : " + pckPath);
 		if (isJarFile(url.toString()))
 			loadJarClasses(classes, url.getFile(), pathStr);
 		else

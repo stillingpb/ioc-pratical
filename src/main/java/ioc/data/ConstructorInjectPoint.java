@@ -13,12 +13,16 @@ public class ConstructorInjectPoint implements InjectPoint {
 	}
 
 	public Object newInstance(Object[] params) {
+		Object instance = null;
 		try {
-			return constructor.newInstance(params);
+			boolean isAccessible = constructor.isAccessible();
+			constructor.setAccessible(true);
+			instance = constructor.newInstance(params);
+			constructor.setAccessible(isAccessible);
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
-		return null;
+		return instance;
 	}
 
 	/**

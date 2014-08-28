@@ -22,12 +22,13 @@ public class ClassScannerTest {
 
 	@Before
 	public void setUp() {
-		scanner = new ClassPathScanner("javax.annotation");
+		scanner = new ClassPathScanner("javax.inject");
 	}
 
 	@Test
 	public void testClassLoad() throws ClassScannerException {
 		Set<Class<?>> classes = scanner.loadClasses();
+		System.out.println(classes);
 	}
 
 	@Test
