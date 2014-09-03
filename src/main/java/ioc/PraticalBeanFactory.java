@@ -11,11 +11,7 @@ public class PraticalBeanFactory {
 		beanLoader = new DefaultBeanLoader(bdloader);
 	}
 
-	public <T> T getBean(Class<T> clazz) throws BeanLoaderException {
-		return beanLoader.getBean(clazz);
-	}
-
-	public <T> T getBean(Class<T> clazz, String qualifier) throws BeanLoaderException {
-		return beanLoader.getBean(clazz, qualifier);
+	public Object getBean(String identifier) throws BeanLoaderException {
+		return beanLoader.getBean(identifier);
 	}
 }

@@ -4,16 +4,16 @@ import java.util.List;
 
 public class BeanData {
 	private Class<?> beanType;
-	private String qualifier;
+	private String identifier;
 	private ConstructorInjectPoint constructInjectPoint;
 	private List<InjectPoint> dependencis;
 
 	private boolean isSingleton;
 
-	public BeanData(Class<?> beanType, String qualifier, ConstructorInjectPoint constInjectPoint,
+	public BeanData(Class<?> beanType, String identifier, ConstructorInjectPoint constInjectPoint,
 			List<InjectPoint> dependencis, boolean isSingleton) {
 		this.beanType = beanType;
-		this.qualifier = qualifier;
+		this.identifier = identifier;
 		this.constructInjectPoint = constInjectPoint;
 		this.dependencis = dependencis;
 		this.isSingleton = isSingleton;
@@ -23,8 +23,8 @@ public class BeanData {
 		return beanType;
 	}
 
-	public String getQualifier() {
-		return qualifier;
+	public String getIdentifier() {
+		return identifier;
 	}
 
 	public List<InjectPoint> getDependencis() {
@@ -40,6 +40,6 @@ public class BeanData {
 	}
 
 	public String toString() {
-		return "( " + beanType.getName() + " : " + qualifier + " )";
+		return "( " + beanType.getName() + " : " + identifier + " )";
 	}
 }

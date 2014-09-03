@@ -1,6 +1,5 @@
 package test;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import ioc.AnnotationBeanDataLoader;
 import ioc.BeanDataLoader;
@@ -15,10 +14,6 @@ import java.util.List;
 import org.junit.Before;
 import org.junit.Test;
 
-import test.bean.Fruit;
-import test.bean.People;
-import test.bean.cycle.CycleTwoProvider;
-
 public class AnnotationBeanDataLoaderTest {
 	BeanDataLoader beanDataLoader;
 
@@ -30,29 +25,19 @@ public class AnnotationBeanDataLoaderTest {
 
 	@Test
 	public void testFruitBean() throws BeanDataLoaderException {
-		BeanData appleBean = beanDataLoader.getBeanData(Fruit.class, "apple");
+		BeanData appleBean = beanDataLoader.getBeanData("apple");
 		assertNotNull(appleBean);
-		BeanData orangeBean = beanDataLoader.getBeanData(Fruit.class, "orange");
+		BeanData orangeBean = beanDataLoader.getBeanData("orange");
 		assertNotNull(orangeBean);
 	}
 
 	@Test
 	public void testPeopleBean() throws BeanDataLoaderException {
-		BeanData peopleBean = beanDataLoader.getBeanData(People.class, "people");
+		BeanData peopleBean = beanDataLoader.getBeanData("people");
 		assertNotNull(peopleBean);
-		assertEquals(peopleBean.getConstructInjectPoint().getDependencies().get(0).getQualifier(),
-				"banana");
 		List<InjectPoint> list = peopleBean.getDependencis();
 		for (InjectPoint i : list) {
-			System.out.println(i.getDependencies().get(0).getQualifier());
+			System.out.println(i.getDependencies());
 		}
-	}
-
-	@Test
-	public void testProvider() throws BeanDataLoaderException {
-		BeanData beanData = beanDataLoader.getBeanData(CycleTwoProvider.class, "CycleTwoProvider");
-		System.out.println(beanData.getConstructInjectPoint().getDependencies());
-		for(InjectPoint ip : beanData.getDependencis())
-			System.out.println(ip.getDependencies());
 	}
 }

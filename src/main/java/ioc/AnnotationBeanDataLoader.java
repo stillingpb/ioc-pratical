@@ -2,7 +2,6 @@ package ioc;
 
 import ioc.annotation.Component;
 import ioc.data.BeanData;
-import ioc.data.BeanIdentifier;
 import ioc.data.ConstructorInjectPoint;
 import ioc.data.FieldInjectPoint;
 import ioc.data.InjectPoint;
@@ -15,8 +14,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.ParameterizedType;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,15 +25,15 @@ import java.util.Set;
 import javax.inject.Inject;
 import javax.inject.Singleton;
 
-import com.sun.net.ssl.internal.ssl.Provider;
-
 public class AnnotationBeanDataLoader implements BeanDataLoader {
 
 	private ClassScanner scanner;
+
 	/**
-	 * 缓存已加载的组件bean
+	 * id号和Class的绑定关系 <identify, clazz>
 	 */
-	private ComponentBeanMap componentBeanMap;
+	private Map<String, Class<?>> idToClassBinding;
+
 	/**
 	 * 缓存已经加载过的beanData
 	 */
@@ -44,34 +41,35 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 
 	public AnnotationBeanDataLoader(ClassScanner scanner) {
 		this.scanner = scanner;
+		idToClassBinding = new HashMap<String, Class<?>>();
 		beanDataMap = new HashMap<Class<?>, BeanData>();
 	}
 
 	public void loadAllBeanData() throws BeanDataLoaderException {
 		loadComponentBeanFromClassesIfNeeded();
-		Map<String, List<Class<?>>> componentBeans = componentBeanMap.getComponentBeans();
-		for (Entry<String, List<Class<?>>> entry : componentBeans.entrySet()) {
-			String qualifier = entry.getKey();
-			for (Class<?> bindingClazz : entry.getValue())
-				loadBeanData(bindingClazz, qualifier);
+		for (Entry<String, Class<?>> entry : idToClassBinding.entrySet()) {
+			String identifier = entry.getKey();
+			Class<?> clazz = entry.getValue();
+			BeanData beanData = loadBeanData(clazz, identifier);
+			beanDataMap.put(clazz, beanData);
 		}
 	}
 
-	public BeanData getBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
+	public BeanData getBeanData(String identifier) throws BeanDataLoaderException {
 		loadComponentBeanFromClassesIfNeeded();
-		Class<?> bindingClazz = getBindingClass(clazz, qualifier);
+		Class<?> bindingClazz = idToClassBinding.get(identifier);
 		if (beanDataMap.containsKey(bindingClazz))
 			return beanDataMap.get(bindingClazz);
-		return loadBeanData(bindingClazz, qualifier);
+		return loadBeanData(bindingClazz, identifier);
 	}
 
-	private BeanData loadBeanData(Class<?> clazz, String qualifier) throws BeanDataLoaderException {
+	private BeanData loadBeanData(Class<?> clazz, String identifier) throws BeanDataLoaderException {
 		ConstructorInjectPoint constInjectPoint = findConstructInjectPoint(clazz);
 		List<InjectPoint> injectPoints = new ArrayList<InjectPoint>();
 		injectPoints.addAll(findFieldInjectPoint(clazz));
 		injectPoints.addAll(findMethodInjectPoint(clazz));
 		boolean isSingleton = findSingleInfo(clazz);
-		BeanData beanData = new BeanData(clazz, qualifier, constInjectPoint, injectPoints,
+		BeanData beanData = new BeanData(clazz, identifier, constInjectPoint, injectPoints,
 				isSingleton);
 		beanDataMap.put(clazz, beanData);
 		return beanData;
@@ -84,9 +82,6 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	}
 
 	private void loadComponentBeanFromClassesIfNeeded() throws BeanDataLoaderException {
-		if (componentBeanMap != null)
-			return;
-		componentBeanMap = new ComponentBeanMap();
 		Set<Class<?>> classes = null;
 		try {
 			classes = scanner.loadClasses();
@@ -95,8 +90,8 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 		}
 		for (Class<?> clazz : classes) {
 			if (clazz.isAnnotationPresent(Component.class)) {
-				String qualifier = ReflectUtil.getClassQualifier(clazz);
-				componentBeanMap.add(qualifier, clazz);
+				String identifier = ReflectUtil.getClassIdentifier(clazz);
+				idToClassBinding.put(identifier, clazz);
 			}
 		}
 	}
@@ -112,7 +107,7 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 	private ConstructorInjectPoint findConstructInjectPoint(Class<?> clazz)
 			throws BeanDataLoaderException {
 		Constructor<?>[] constructors = clazz.getDeclaredConstructors();
-		List<BeanIdentifier> dependencies = new ArrayList<BeanIdentifier>();
+		List<String> dependencies = new ArrayList<String>();
 		Constructor<?> constructorNeedInject = null;
 		int count = 0; // 计数需要注入的构造器个数
 		for (Constructor<?> constructor : constructors) {
@@ -126,11 +121,10 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				throw new BeanDataLoaderException(clazz.toString()
 						+ " has too much constructor need to inject");
 			Class<?> paramTypes[] = constructor.getParameterTypes();
-			Type genericTypes[] = constructor.getGenericParameterTypes();
 			Annotation[][] paramAnnotations = constructor.getParameterAnnotations();
 			for (int i = 0; i < paramTypes.length; i++) {
-				BeanIdentifier identifier = ReflectUtil.getBeanIdentifier(paramTypes[i],
-						genericTypes[i], paramAnnotations[i]);
+				String identifier = ReflectUtil.getBeanIdentifier(paramTypes[i],
+						paramAnnotations[i]);
 				dependencies.add(identifier);
 			}
 			constructor.setAccessible(isAccessable);
@@ -139,8 +133,7 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 		if (constructorNeedInject != null)
 			return new ConstructorInjectPoint(constructorNeedInject, dependencies);
 		try {
-			return new ConstructorInjectPoint(clazz.getConstructor(),
-					new ArrayList<BeanIdentifier>());
+			return new ConstructorInjectPoint(clazz.getConstructor(), new ArrayList<String>());
 		} catch (Exception e) {
 			throw new BeanDataLoaderException("please reserve a default public constructor for "
 					+ clazz.toString(), e);
@@ -158,12 +151,11 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 				continue;
 			}
 			Class<?> paramTypes[] = method.getParameterTypes();
-			Type genericTypes[] = method.getGenericParameterTypes();
 			Annotation[][] paramAnnotations = method.getParameterAnnotations();
-			List<BeanIdentifier> dependencies = new ArrayList<BeanIdentifier>();
+			List<String> dependencies = new ArrayList<String>();
 			for (int i = 0; i < paramTypes.length; i++) {
-				BeanIdentifier identifier = ReflectUtil.getBeanIdentifier(paramTypes[i],
-						genericTypes[i], paramAnnotations[i]);
+				String identifier = ReflectUtil.getBeanIdentifier(paramTypes[i],
+						paramAnnotations[i]);
 				dependencies.add(identifier);
 			}
 			injectPoints.add(new MethodInjectPoint(method, dependencies));
@@ -181,72 +173,12 @@ public class AnnotationBeanDataLoader implements BeanDataLoader {
 			field.setAccessible(true);
 			if (field.isAnnotationPresent(Inject.class)) {
 				Class<?> paramType = field.getType();
-				Type genericType = field.getGenericType();
 				Annotation[] paramAnnotation = field.getAnnotations();
-				BeanIdentifier identifier = ReflectUtil.getBeanIdentifier(paramType, genericType,
-						paramAnnotation);
+				String identifier = ReflectUtil.getBeanIdentifier(paramType, paramAnnotation);
 				injectPoints.add(new FieldInjectPoint(field, identifier));
 			}
 			field.setAccessible(isAccessible);
 		}
 		return injectPoints;
 	}
-
-	private Class<?> getBindingClass(Class<?> clazz, String qualifier)
-			throws BeanDataLoaderException {
-		List<Class<?>> matched = componentBeanMap.getBindingClass(clazz, qualifier);
-		if (matched == null || matched.size() == 0)
-			throw new BeanDataLoaderException("there is no bean match with (" + clazz.toString()
-					+ " : " + qualifier + ")  :" + matched);
-		else if (matched.size() == 1)
-			return matched.get(0);
-		else
-			throw new BeanDataLoaderException("there is too much bean match with ("
-					+ clazz.toString() + " : " + qualifier + ")  :" + matched);
-	}
-
-	/**
-	 * 以<qualifier, List<Class<?>>>的形式保存componentBean,
-	 * 供快速定位匹配<class,qualifier>的类
-	 * 
-	 * @author pb
-	 * 
-	 */
-	private static class ComponentBeanMap {
-		/**
-		 * <key, value> == <qualifier, List<Class<?>>>
-		 */
-		private Map<String, List<Class<?>>> componentBeans;
-
-		public ComponentBeanMap() {
-			componentBeans = new HashMap<String, List<Class<?>>>();
-		}
-
-		public Map<String, List<Class<?>>> getComponentBeans() {
-			return componentBeans;
-		}
-
-		public void add(String qualifier, Class<?> clazz) {
-			qualifier = qualifier.toLowerCase();
-			List<Class<?>> classes = componentBeans.get(qualifier);
-			if (classes == null) {
-				classes = new ArrayList<Class<?>>();
-				componentBeans.put(qualifier, classes);
-			}
-			classes.add(clazz);
-		}
-
-		public List<Class<?>> getBindingClass(Class<?> clazz, String qualifier) {
-			qualifier = qualifier.toLowerCase();
-			List<Class<?>> matched = new ArrayList<Class<?>>();
-			List<Class<?>> classes = componentBeans.get(qualifier);
-			if (classes == null)
-				return matched;
-			for (Class<?> c : classes)
-				if (clazz.isAssignableFrom(c))
-					matched.add(c);
-			return matched;
-		}
-	}
-
 }
