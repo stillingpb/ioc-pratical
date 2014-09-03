@@ -41,7 +41,7 @@
     <property name="java.vm.specification.version" value="1.0"/>
     <property name="sun.arch.data.model" value="32"/>
     <property name="java.home" value="/usr/lib/jvm/java-6-openjdk-i386/jre"/>
-    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher install"/>
+    <property name="sun.java.command" value="org.codehaus.plexus.classworlds.launcher.Launcher clean compile package install"/>
     <property name="java.specification.vendor" value="Sun Microsystems Inc."/>
     <property name="user.language" value="zh"/>
     <property name="java.vm.info" value="mixed mode"/>
@@ -59,6 +59,6 @@
     <property name="sun.cpu.isalist" value=""/>
   </properties>
   <testcase time="0" classname="test.AnnotationBeanDataLoaderTest" name="testProvider"/>
-  <testcase time="0.001" classname="test.AnnotationBeanDataLoaderTest" name="testPeopleBean"/>
-  <testcase time="0.002" classname="test.AnnotationBeanDataLoaderTest" name="testFruitBean"/>
+  <testcase time="0" classname="test.AnnotationBeanDataLoaderTest" name="testPeopleBean"/>
+  <testcase time="0.001" classname="test.AnnotationBeanDataLoaderTest" name="testFruitBean"/>
 </testsuite>
