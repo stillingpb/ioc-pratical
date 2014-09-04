@@ -1,12 +1,9 @@
 package test.bean.impl;
 
-import javax.annotation.Resource;
-
-import test.bean.Fruit;
 import ioc.annotation.Component;
+import test.bean.Fruit;
 
-@Component
-@Resource(name = "apple")
+@Component("apple")
 public class Apple implements Fruit {
 
 	public String get() {

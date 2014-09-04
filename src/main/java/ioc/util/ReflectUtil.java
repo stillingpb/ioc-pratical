@@ -1,8 +1,9 @@
 package ioc.util;
 
-import java.lang.annotation.Annotation;
+import ioc.annotation.BeanId;
+import ioc.annotation.Component;
 
-import javax.annotation.Resource;
+import java.lang.annotation.Annotation;
 
 public class ReflectUtil {
 	/**
@@ -13,8 +14,9 @@ public class ReflectUtil {
 	 */
 	public static String getClassIdentifier(Class<?> clazz) {
 		String identifier = clazz.getSimpleName();
-		if (clazz.isAnnotationPresent(Resource.class))
-			identifier = clazz.getAnnotation(Resource.class).name();
+		String deployedId = clazz.getAnnotation(Component.class).value()[0];
+		if (!"".equals(deployedId))
+			identifier = deployedId;
 		return identifier;
 	}
 
@@ -22,8 +24,8 @@ public class ReflectUtil {
 		String identifier = paramType.getSimpleName();
 		for (Annotation annotation : annotations) {
 			Class<?> annotationType = annotation.annotationType();
-			if (Resource.class.isAssignableFrom(annotationType)) {
-				identifier = ((Resource) annotation).name();
+			if (BeanId.class.isAssignableFrom(annotationType)) {
+				identifier = ((BeanId) annotation).value()[0];
 				break;
 			}
 		}

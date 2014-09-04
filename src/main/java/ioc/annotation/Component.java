@@ -10,10 +10,10 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.TYPE)
 /**
- * 修饰需要被加载的java bean
+ * 修饰需要被加载的java bean,其中value是修饰类的id
  * @author pb
  *
  */
 public @interface Component {
-
+	String[] value() default "";
 }

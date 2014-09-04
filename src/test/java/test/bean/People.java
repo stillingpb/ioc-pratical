@@ -1,42 +1,35 @@
 package test.bean;
 
+import ioc.annotation.BeanId;
 import ioc.annotation.Component;
 
-import javax.annotation.Resource;
 import javax.inject.Inject;
-import javax.inject.Named;
 
-@Component
-@Resource(name = "people")
+@Component("people")
 public class People {
 
 	@Inject
-	@Resource(name = "orange")
+	@BeanId("orange")
 	Fruit orange;
 
-	@Inject
-	@Resource(name = "apple")
 	Fruit apple;
 
-	// @Inject
-	// @Resource(name = "banana")
-	// Fruit banana;
-	//
-	// @Inject
-	// @Resource(name = "waterMellon")
-	// Fruit waterMellon;
+	Fruit banana;
 
-	public People() {
+	@Inject
+	public People(@BeanId("banana") Fruit banana) {
+		this.banana = banana;
 	}
 
-	public void setApple(Fruit apple) {
+	@Inject
+	public void setApple(@BeanId("apple") Fruit apple) {
 		this.apple = apple;
 	}
 
 	public void eat() {
 		System.out.println(orange.get());
 		System.out.println(apple.get());
-		// System.out.println(banana.get());
+		System.out.println(banana.get());
 		// System.out.println(waterMellon.get());
 	}
 }
