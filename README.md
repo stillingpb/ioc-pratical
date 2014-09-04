@@ -27,7 +27,6 @@ public class People {
 }
 
 public interface Fruit {
-	public String get();
 }
 
 @Component("apple")
